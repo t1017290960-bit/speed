@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-HK">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="https://cdn.tailwindcss.com"></script>
+<title>網絡測速與紀錄</title>
+<style>
+:root{color-scheme:light}body{background:#f3f6fb;font-family:ui-sans-serif,system-ui,-apple-system,"Noto Sans TC",sans-serif}.panel{background:#fff;border:1px solid #e5eaf2;border-radius:20px;box-shadow:0 8px 28px #1725540a}.metric{background:linear-gradient(145deg,#f8fbff,#f1f6ff)}button:disabled{opacity:.6;cursor:wait}
+</style>
+</head>
+<body class="text-slate-800 min-h-screen">
+<main class="max-w-4xl mx-auto px-4 py-8 md:py-12">
+<header class="mb-7"><div class="inline-flex items-center gap-2 rounded-full bg-blue-100 text-blue-800 px-3 py-1 text-sm font-semibold">📶 網絡工具</div><h1 class="text-3xl md:text-4xl font-extrabold tracking-tight mt-4">網絡測速與紀錄</h1><p class="text-slate-500 mt-2">測試延遲、下載及上載速度，並按地點保存每次結果。</p></header>
+<section class="panel p-5 md:p-7">
+<label for="place" class="block font-semibold mb-2">測試地點 <span class="text-rose-500">*</span></label><div class="flex flex-col sm:flex-row gap-3"><input id="place" class="flex-1 rounded-xl border border-slate-300 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500" placeholder="例如：家中、辦公室、圖書館" maxlength="80"><button id="run" class="rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-bold px-6 py-3 transition">開始測速</button></div>
+<p class="text-xs text-slate-500 mt-2">地點由你手動輸入，不會自動取得 GPS 位置。一次測試約使用 15 MB 流量。</p>
+<div id="status" role="status" class="min-h-6 mt-4 text-sm font-medium text-slate-600">輸入地點後即可開始測速。</div>
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+<div class="metric rounded-2xl p-5"><div class="text-sm text-slate-500">延遲（Ping）</div><div class="mt-2"><span id="ping" class="text-3xl font-extrabold">—</span><span class="ml-2 text-slate-500">ms</span></div></div>
+<div class="metric rounded-2xl p-5"><div class="text-sm text-slate-500">下載速度</div><div class="mt-2"><span id="down" class="text-3xl font-extrabold">—</span><span class="ml-2 text-slate-500">Mbps</span></div></div>
+<div class="metric rounded-2xl p-5"><div class="text-sm text-slate-500">上載速度</div><div class="mt-2"><span id="up" class="text-3xl font-extrabold">—</span><span class="ml-2 text-slate-500">Mbps</span></div></div>
+</div>
+<div class="mt-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"><p id="resultNote" class="text-sm text-slate-500">測速結果完成後，可保存到下方紀錄。</p><button id="save" disabled class="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-3">保存測速紀錄</button></div>
+</section>
+<section class="panel p-5 md:p-7 mt-6"><div class="flex items-center justify-between gap-3 mb-4"><div><h2 class="text-xl font-bold">測速紀錄</h2><p class="text-sm text-slate-500 mt-1">紀錄保存在此瀏覽器，只有這部裝置可查看。</p></div><button id="clear" class="text-sm font-semibold text-rose-600 hover:text-rose-800">清除全部</button></div><div id="history" class="space-y-3"><p class="text-slate-500 text-sm">載入中…</p></div></section>
+<footer class="text-xs text-slate-500 text-center mt-6 space-y-2"><p><strong>準確度提示：</strong>結果屬估算，並非電訊商認證測試。延遲以 5 次小型 HTTPS 請求估算（不是 ICMP Ping）；下載使用約 10 MiB、上載約 5 MiB 數據，因此測試伺服器、連線路徑、瀏覽器及測試時間都會影響結果。</p><p>若要比較不同時段，盡量使用同一裝置、同一位置及同一 Wi-Fi／網絡，暫停其他下載或串流，並重測幾次；速度可能與電訊商方案標示或其他測速工具不同。</p></footer>
+</main>
+<script>
+const $=id=>document.getElementById(id);let latest=null,records=[];
+function fmt(n){return n==null?'—':Number(n).toFixed(1)}
+function render(){const box=$('history');box.replaceChildren();if(!records.length){const p=document.createElement('p');p.className='text-slate-500 text-sm';p.textContent='暫時未有紀錄。完成測速後按「保存測速紀錄」。';box.append(p);return}records.forEach((r,i)=>{const card=document.createElement('article');card.className='rounded-xl border border-slate-200 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3';const info=document.createElement('div');const title=document.createElement('div');title.className='font-bold';title.textContent='📍 '+r.place;const date=document.createElement('div');date.className='text-xs text-slate-500 mt-1';date.textContent=new Date(r.time).toLocaleString('zh-HK');const vals=document.createElement('div');vals.className='text-sm mt-2 text-slate-700';vals.textContent=`Ping ${fmt(r.ping)} ms　·　下載 ${fmt(r.down)} Mbps　·　上載 ${fmt(r.up)} Mbps`;info.append(title,date,vals);const del=document.createElement('button');del.className='self-start sm:self-center text-sm text-rose-600 hover:text-rose-800 font-semibold';del.textContent='刪除';del.addEventListener('click',async()=>{records.splice(i,1);await persist();render()});card.append(info,del);box.append(card)})}
+async function persist(){try{await window.sayoStorage.setItem('speedRecords',JSON.stringify(records));return true}catch(e){console.error(e);$('status').textContent='紀錄保存失敗，請稍後再試。';return false}}
+async function load(){try{const raw=await window.sayoStorage.getItem('speedRecords');records=raw?JSON.parse(raw):[];if(!Array.isArray(records))records=[]}catch(e){console.error(e);records=[];$('status').textContent='無法載入舊紀錄；仍可進行測速。'}render()}
+function setMetric(id,val){$(id).textContent=val==null?'—':fmt(val)}
+async function pingTest(){const samples=[];for(let i=0;i<5;i++){const t=performance.now();const res=await fetch('https://speed.cloudflare.com/__down?bytes=1000&nocache='+Date.now()+'_'+i,{cache:'no-store'});if(!res.ok)throw Error('Ping 測試連線失敗');await res.arrayBuffer();samples.push(performance.now()-t)}samples.sort((a,b)=>a-b);return (samples[2]+samples[3])/2}
+async function downloadTest(){const bytes=10*1024*1024,t=performance.now();const res=await fetch('https://speed.cloudflare.com/__down?bytes='+bytes+'&nocache='+Date.now(),{cache:'no-store'});if(!res.ok)throw Error('下載測試連線失敗');const data=await res.arrayBuffer();return data.byteLength*8/((performance.now()-t)/1000)/1e6}
+async function uploadTest(){const bytes=5*1024*1024,data=new Uint8Array(bytes);for(let i=0;i<bytes;i+=65536)crypto.getRandomValues(data.subarray(i,Math.min(i+65536,bytes)));const t=performance.now();const res=await fetch('https://speed.cloudflare.com/__up?nocache='+Date.now(),{method:'POST',body:data,cache:'no-store'});if(!res.ok)throw Error('上載測試連線失敗');await res.arrayBuffer();return bytes*8/((performance.now()-t)/1000)/1e6}
+$('run').addEventListener('click',async()=>{const place=$('place').value.trim();if(!place){$('place').focus();$('status').textContent='請先輸入測試地點。';return}latest=null;$('save').disabled=true;['ping','down','up'].forEach(id=>setMetric(id,null));$('run').disabled=true;const results={place,time:new Date().toISOString(),ping:null,down:null,up:null},errors=[];for(const [label,id,fn] of [['正在測試延遲…','ping',pingTest],['正在測試下載速度…','down',downloadTest],['正在測試上載速度…','up',uploadTest]]){$('status').textContent=label;try{results[id]=await fn();setMetric(id,results[id])}catch(e){console.error(e);errors.push(e.message);$('status').textContent=label+' 未能完成，繼續其他項目…'}}latest=results;const success=[results.ping,results.down,results.up].some(v=>v!=null);$('run').disabled=false;if(success){$('save').disabled=false;$('resultNote').textContent='完成！可保存本次結果。';$('status').textContent=errors.length?'部分測試未能完成；可保存已取得的數據。':'測速完成。'}else{$('status').textContent='測速未能連線，請檢查網絡後再試。';$('resultNote').textContent='目前沒有可保存的測試數據。'}});
+$('save').addEventListener('click',async()=>{if(!latest)return;records.unshift(latest);if(await persist()){$('status').textContent='測速紀錄已保存。';$('save').disabled=true;render()}else{records.shift()}});
+$('clear').addEventListener('click',async()=>{if(!records.length)return;if(!confirm('確定清除所有測速紀錄？'))return;const old=records;records=[];if(await persist()){render();$('status').textContent='所有紀錄已清除。'}else records=old});
+load();
+</script>
+</body>
+</html>
